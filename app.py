@@ -17,6 +17,13 @@ st.set_page_config(
 # Enhanced Custom CSS
 st.markdown("""
 <style>
+    /* Hide the Streamlit Menu button (three dots) */
+    #MainMenu {visibility: hidden;}
+    /* Hide the Streamlit Footer */
+    footer {visibility: hidden;}
+    /* Optional: Hide the "Deploy this app" button in the top right corner */
+    header {visibility: hidden;}
+
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
     
     * {
@@ -251,6 +258,7 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
 
 # Initialize session state
 if 'tasks' not in st.session_state:
