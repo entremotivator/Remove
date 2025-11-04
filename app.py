@@ -378,9 +378,15 @@ with tab1:
         )
     
     if process_button:
-        if not check_sora_url(video_url):
-            st.error("⚠️ Please enter a valid Sora URL")
+        # --- FIX START: Refined validation logic ---
+        if not api_key:
+            st.error("❌ Please enter your KIE.AI API Key in the sidebar to proceed.")
+        elif not video_url:
+            st.error("❌ Please enter a Sora Video URL.")
+        elif not check_sora_url(video_url):
+            st.error("❌ Invalid URL. Must be a valid Sora URL (e.g., containing 'sora.chatgpt.com').")
         else:
+        # --- FIX END: Refined validation logic ---
             st.session_state.processing = True
             
             st.markdown('<div class="progress-container">', unsafe_allow_html=True)
@@ -460,7 +466,9 @@ with tab1:
             pass
         
         if st.button("📤 Upload & Process", use_container_width=True):
-            if file_size > 500:
+            if not api_key:
+                st.error("❌ Please enter your KIE.AI API Key in the sidebar to proceed.")
+            elif file_size > 500:
                 st.error("❌ File too large. Maximum 500MB")
             else:
                 with st.spinner("📤 Uploading to temporary host..."):
@@ -502,23 +510,10 @@ with tab1:
             st.markdown('<div class="feature-card">', unsafe_allow_html=True)
             st.markdown("### 🎬 Processed Video")
             
-            # FIX: The original code used a try/except block that would fall back to a link
-            # if st.video(url) failed. This is the correct way to display a video from a URL.
-            # The issue was likely that the download button was consuming the video data
-            # before st.video could use it, or the video data was too large for the download
-            # button to handle in memory.
-            # The fix is to ensure st.video is called with the URL, and to use the
-            # download button's ability to take a URL directly (if available in the Streamlit
-            # version being used) or to use a direct link for download.
-            # Since the original code was trying to download the video content into memory
-            # for the download button, we will revert the st.video call to the original
-            # logic, but ensure the download button logic is separate and robust.
-            
-            # Reverting to the original st.video call for the result URL
+            # FIX from previous step: Use st.video with URL for streaming
             try:
                 st.video(st.session_state.result_url)
             except Exception as e:
-                # If st.video fails (e.g., due to CORS or large file size), show a link
                 st.info(f"Video preview not available. Error: {e}")
                 st.markdown(f"[🔗 View Video]({st.session_state.result_url})")
                 
@@ -528,21 +523,7 @@ with tab1:
             st.markdown('<div class="feature-card">', unsafe_allow_html=True)
             st.markdown("### 📥 Download")
             
-            # The issue was likely here, where the code attempts to download the entire video
-            # into memory (video_data = requests.get(...).content) before offering the download button.
-            # For large video files, this can cause the app to crash or hang.
-            # The most robust solution is to offer a direct link for download, which is
-            # what the original code already had as a fallback. We will simplify this to
-            # always offer the direct link for robustness, or use a more memory-efficient
-            # download method if needed, but for a quick fix, the direct link is best.
-            
-            # We will remove the attempt to download the video into memory for the button
-            # and rely on the direct link, which is the most common and robust way to handle
-            # large file downloads in Streamlit when the file is hosted externally.
-            
-            # The original download button logic (lines 514-523) is removed and replaced
-            # with the robust direct link fallback.
-            
+            # FIX from previous step: Use direct HTML link for robust download
             st.markdown(f"""
             <a href="{st.session_state.result_url}" download="sora_no_watermark.mp4" target="_blank">
                 <button style="
@@ -719,3 +700,4 @@ st.markdown("""
     </p>
 </div>
 """, unsafe_allow_html=True)
+
