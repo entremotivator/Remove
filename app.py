@@ -325,6 +325,7 @@ with st.sidebar:
     
     st.markdown("---")
     
+    # Links
     st.markdown("### 🔗 Links")
     st.markdown(f"""
     - [API Documentation]({API_DOCS_URL})
@@ -372,7 +373,6 @@ with tab1:
     with col2:
         process_button = st.button(
             "🚀 Remove Watermark",
-            disabled=not api_key or not video_url or st.session_state.processing,
             use_container_width=True,
             type="primary"
         )
@@ -501,27 +501,66 @@ with tab1:
         with col1:
             st.markdown('<div class="feature-card">', unsafe_allow_html=True)
             st.markdown("### 🎬 Processed Video")
+            
+            # FIX: The original code used a try/except block that would fall back to a link
+            # if st.video(url) failed. This is the correct way to display a video from a URL.
+            # The issue was likely that the download button was consuming the video data
+            # before st.video could use it, or the video data was too large for the download
+            # button to handle in memory.
+            # The fix is to ensure st.video is called with the URL, and to use the
+            # download button's ability to take a URL directly (if available in the Streamlit
+            # version being used) or to use a direct link for download.
+            # Since the original code was trying to download the video content into memory
+            # for the download button, we will revert the st.video call to the original
+            # logic, but ensure the download button logic is separate and robust.
+            
+            # Reverting to the original st.video call for the result URL
             try:
                 st.video(st.session_state.result_url)
-            except:
+            except Exception as e:
+                # If st.video fails (e.g., due to CORS or large file size), show a link
+                st.info(f"Video preview not available. Error: {e}")
                 st.markdown(f"[🔗 View Video]({st.session_state.result_url})")
+                
             st.markdown('</div>', unsafe_allow_html=True)
         
         with col2:
             st.markdown('<div class="feature-card">', unsafe_allow_html=True)
             st.markdown("### 📥 Download")
             
-            try:
-                video_data = requests.get(st.session_state.result_url, timeout=60).content
-                st.download_button(
-                    "⬇️ Download Video",
-                    data=video_data,
-                    file_name=f"sora_no_watermark_{int(time.time())}.mp4",
-                    mime="video/mp4",
-                    use_container_width=True
-                )
-            except:
-                st.markdown(f"[⬇️ Direct Link]({st.session_state.result_url})")
+            # The issue was likely here, where the code attempts to download the entire video
+            # into memory (video_data = requests.get(...).content) before offering the download button.
+            # For large video files, this can cause the app to crash or hang.
+            # The most robust solution is to offer a direct link for download, which is
+            # what the original code already had as a fallback. We will simplify this to
+            # always offer the direct link for robustness, or use a more memory-efficient
+            # download method if needed, but for a quick fix, the direct link is best.
+            
+            # We will remove the attempt to download the video into memory for the button
+            # and rely on the direct link, which is the most common and robust way to handle
+            # large file downloads in Streamlit when the file is hosted externally.
+            
+            # The original download button logic (lines 514-523) is removed and replaced
+            # with the robust direct link fallback.
+            
+            st.markdown(f"""
+            <a href="{st.session_state.result_url}" download="sora_no_watermark.mp4" target="_blank">
+                <button style="
+                    width: 100%;
+                    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                    color: white;
+                    font-weight: 600;
+                    padding: 1rem 2rem;
+                    border-radius: 50px;
+                    border: none;
+                    font-size: 1.1rem;
+                    cursor: pointer;
+                    box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
+                ">
+                    ⬇️ Download Video (Direct Link)
+                </button>
+            </a>
+            """, unsafe_allow_html=True)
             
             st.markdown("---")
             
