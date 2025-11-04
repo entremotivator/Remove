@@ -18,7 +18,25 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Enhanced Custom CSS
+# --- 1. Code to Hide GitHub Settings (The user's specific request) ---
+# This CSS snippet hides the Streamlit menu button (three dots) which contains
+# the "Deploy this app" and "View source" options.
+st.markdown("""
+<style>
+    /* Hide the Streamlit Menu button (three dots) */
+    #MainMenu {visibility: hidden;}
+    /* Hide the Streamlit Footer */
+    footer {visibility: hidden;}
+/* Optional: Hide the "Deploy this app" button in the top right corner */
+	header {visibility: hidden;}
+	/* Colorful Up Back Enhancement */
+	.main {
+	    background: linear-gradient(180deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.02) 100%);
+	}
+</style>
+""", unsafe_allow_html=True)
+
+# Enhanced Custom CSS (Original code)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
@@ -370,12 +388,12 @@ if 'total_processing_time' not in st.session_state:
     st.session_state.total_processing_time = 0
 if 'api_calls_count' not in st.session_state:
     st.session_state.api_calls_count = 0
-if 'show_analytics' not in st.session_state:
-    st.session_state.show_analytics = False
 if 'show_favorites' not in st.session_state:
     st.session_state.show_favorites = False
 if 'example_url' not in st.session_state:
     st.session_state.example_url = ""
+if 'page' not in st.session_state:
+    st.session_state.page = 'home' # New state for multi-page structure
 
 # API Configuration
 try:
@@ -505,7 +523,7 @@ def display_task_details(task: Dict, idx: int, api_key: str):
     task_id = task["taskId"]
     is_favorite = task_id in st.session_state.favorites
     
-    with st.expander(f"Task #{idx+1} - {get_status_emoji(task.get('state', 'unknown'))} {task.get('state', 'Unknown').upper()} {'⭐' if is_favorite else ''}", expanded=st.session_state.get(f"expand_{idx}", False)):
+    with st.expander(f"🎬 Task Details: {task_id[:16]}... - {task.get('state', 'Unknown').upper()}", expanded=False):
         
         col1, col2, col3 = st.columns(3)
         
@@ -575,10 +593,356 @@ def display_task_details(task: Dict, idx: int, api_key: str):
         else:
             st.info("Task is still processing or waiting.")
 
+# --- New: Multi-Page Navigation Functions ---
+
+def render_home_page(api_key):
+    st.markdown('<h1 class="main-header animated">Sora Watermark Remover Pro</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle animated">Remove watermarks from your Sora videos with a single API call. Fast, reliable, and high-quality.</p>', unsafe_allow_html=True)
+
+    # Main Input Card
+    with st.container():
+        st.markdown('<div class="card animated">', unsafe_allow_html=True)
+        st.subheader("🚀 Submit New Video Task")
+        
+        video_url = st.text_input(
+            "Video URL",
+            placeholder="Paste your Sora video URL here (e.g., https://example.com/video.mp4)",
+            key="video_url_input"
+        )
+        
+        callback_url = st.text_input(
+            "Optional: Callback URL",
+            placeholder="Enter a URL to be notified when the task is complete",
+            key="callback_url_input"
+        )
+        
+        col_submit, col_example = st.columns([3, 1])
+        
+        with col_submit:
+            if st.button("✨ Start Watermark Removal", use_container_width=True):
+                if not api_key:
+                    st.error("🔑 Please enter your API Key in the sidebar first.")
+                elif not video_url:
+                    st.error("🔗 Please enter a valid Video URL.")
+                else:
+                    # Call API to create task
+                    with st.spinner("Submitting task to API..."):
+                        response = create_task(api_key, video_url, callback_url)
+                        
+                        if response.get("code") == 200:
+                            task_id = response["data"]["taskId"]
+                            created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                            
+                            new_task = {
+                                "taskId": task_id,
+                                "video_url": video_url,
+                                "created_at": created_at,
+                                "state": "waiting",
+                                "cost_time": None,
+                                "priority": "Normal",
+                                "callback_url": callback_url
+                            }
+                            st.session_state.tasks.insert(0, new_task)
+                            st.session_state.task_history.append(new_task)
+                            add_notification(f"Task submitted successfully! ID: {task_id[:16]}...", "success")
+                            st.success(f"Task submitted! ID: `{task_id}`. Check the 'Task List' tab.")
+                            # Clear input fields
+                            st.session_state.video_url_input = ""
+                            st.session_state.callback_url_input = ""
+                            st.rerun()
+                        else:
+                            error_msg = response.get("msg", "Unknown API Error")
+                            st.error(f"Task submission failed: {error_msg}")
+                            add_notification(f"Task submission failed: {error_msg}", "fail")
+        
+        with col_example:
+            if st.button("Use Example URL", use_container_width=True):
+                st.session_state.video_url_input = "https://example.com/sora_sample_video.mp4"
+                st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- New: Feature Showcase Section ---
+    st.markdown("---")
+    st.subheader("Key Features & Benefits")
+    
+    st.markdown('<div class="feature-grid">', unsafe_allow_html=True)
+    
+    # Feature 1
+    st.markdown("""
+    <div class="feature-card animated" style="animation-delay: 0.1s;">
+        <div class="feature-icon">⚡</div>
+        <h4>Ultra-Fast Processing</h4>
+        <p>Leverage our optimized infrastructure for minimal wait times. Get your clean video back in minutes, not hours.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Feature 2
+    st.markdown("""
+    <div class="feature-card animated" style="animation-delay: 0.2s;">
+        <div class="feature-icon">💎</div>
+        <h4>High-Fidelity Output</h4>
+        <p>Advanced AI models ensure the watermark removal is seamless, preserving the original video quality and detail.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Feature 3
+    st.markdown("""
+    <div class="feature-card animated" style="animation-delay: 0.3s;">
+        <div class="feature-icon">🔒</div>
+        <h4>Secure & Private</h4>
+        <p>Your videos are processed securely and deleted after a short period. Your privacy is our top priority.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # --- New: Call to Action ---
+    st.markdown("---")
+    st.subheader("Ready to Get Started?")
+    st.info("Sign up on EntreMotivator.com to get your API key and start processing videos today!")
+    
+def render_task_list_page(api_key):
+    st.markdown('<h1 class="main-header" style="font-size: 2.5rem;">Task Management Dashboard</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Monitor the status and retrieve the results of your video processing tasks.</p>', unsafe_allow_html=True)
+
+    if not api_key:
+        st.warning("🔑 Please configure your API Key in the sidebar to view and manage tasks.")
+        return
+
+    # --- Task List Filtering and Sorting ---
+    col_filter, col_sort, col_fav, col_refresh = st.columns([2, 2, 1, 1])
+    
+    status_filter = col_filter.selectbox(
+        "Filter by Status",
+        options=["All", "Waiting", "Success", "Fail"],
+        index=0
+    )
+    
+    sort_by = col_sort.selectbox(
+        "Sort by",
+        options=["Newest First", "Oldest First", "Status"],
+        index=0
+    )
+    
+    if col_fav.button("⭐ Favorites", use_container_width=True):
+        st.session_state.show_favorites = not st.session_state.show_favorites
+        st.rerun()
+        
+    if col_refresh.button("🔄 Manual Refresh", use_container_width=True):
+        st.rerun()
+
+    # Apply filters and sorting
+    tasks_to_display = st.session_state.tasks
+    
+    # 1. Filter by Favorites
+    if st.session_state.show_favorites:
+        tasks_to_display = [t for t in tasks_to_display if t["taskId"] in st.session_state.favorites]
+        st.info(f"Showing {len(tasks_to_display)} favorite tasks.")
+        
+    # 2. Filter by Status
+    if status_filter != "All":
+        tasks_to_display = [t for t in tasks_to_display if t.get('state', 'Unknown').lower() == status_filter.lower()]
+        
+    # 3. Sort
+    if sort_by == "Newest First":
+        tasks_to_display.sort(key=lambda x: datetime.strptime(x['created_at'], '%Y-%m-%d %H:%M:%S'), reverse=True)
+    elif sort_by == "Oldest First":
+        tasks_to_display.sort(key=lambda x: datetime.strptime(x['created_at'], '%Y-%m-%d %H:%M:%S'))
+    elif sort_by == "Status":
+        tasks_to_display.sort(key=lambda x: x.get('state', 'Unknown'))
+
+    st.markdown("---")
+
+    if not tasks_to_display:
+        st.info("No tasks to display based on current filters.")
+    else:
+        for idx, task in enumerate(tasks_to_display):
+            # Task Card Summary
+            task_id = task["taskId"]
+            status = task.get('state', 'Unknown').upper()
+            is_favorite = task_id in st.session_state.favorites
+            
+            # Use the custom CSS class for a nicer look
+            st.markdown(f'<div class="task-card slide-in">', unsafe_allow_html=True)
+            
+            col_sum_1, col_sum_2, col_sum_3, col_sum_4 = st.columns([3, 2, 2, 1])
+            
+            with col_sum_1:
+                st.markdown(f"**Task ID:** `{task_id[:16]}...`")
+                st.caption(f"Created: {task.get('created_at', 'N/A')}")
+            
+            with col_sum_2:
+                st.markdown(f"**Status:** <span class='status-badge status-{status.lower()}'>{get_status_emoji(status)} {status}</span>", unsafe_allow_html=True)
+            
+            with col_sum_3:
+                st.markdown(f"**Time:** {task.get('cost_time', 'N/A')}s")
+            
+            with col_sum_4:
+                if st.button("Details", key=f"show_details_{idx}", use_container_width=True):
+                    # Toggle the expander state in session state if needed, but for now, rely on the expander below
+                    pass 
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Detailed View (Expander)
+            display_task_details(task, idx, api_key)
+            
+def render_analytics_page():
+    st.markdown('<h1 class="main-header" style="font-size: 2.5rem;">Performance Analytics</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Deep dive into your video processing usage and performance metrics.</p>', unsafe_allow_html=True)
+
+    stats = calculate_stats()
+    insights = get_performance_insights()
+    
+    # --- Metrics Grid ---
+    st.subheader("Overall Performance")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.markdown('<div class="metric-label">Total Tasks</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-value">{stats["total"]}</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with col2:
+        st.markdown('<div class="metric-card" style="background: linear-gradient(135deg, #28A745 0%, #20C997 100%);">', unsafe_allow_html=True)
+        st.markdown('<div class="metric-label">Success Rate</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-value">{stats["success_rate"]:.1f}%</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with col3:
+        st.markdown('<div class="metric-card" style="background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%);">', unsafe_allow_html=True)
+        st.markdown('<div class="metric-label">Avg. Time</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-value">{insights["avg_processing_time"]:.1f}s</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with col4:
+        st.markdown('<div class="metric-card" style="background: linear-gradient(135deg, #DC3545 0%, #C82333 100%);">', unsafe_allow_html=True)
+        st.markdown('<div class="metric-label">Failed Tasks</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-value">{stats["failed"]}</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("---")
+    
+    # --- Task Status Distribution Chart (New Feature) ---
+    st.subheader("Task Status Distribution")
+    
+    labels = ['Success', 'Waiting', 'Failed']
+    values = [stats['success'], stats['waiting'], stats['failed']]
+    colors = ['#20C997', '#FF8C00', '#C82333']
+
+    fig = go.Figure(data=[go.Pie(labels=labels, values=values, marker_colors=colors, hole=.3)])
+    fig.update_layout(
+        margin=dict(t=0, b=0, l=0, r=0),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.markdown("---")
+    
+    # --- Timeline of Recent Tasks (New Feature) ---
+    st.subheader("Recent Task Timeline")
+    
+    recent_tasks = st.session_state.tasks[:5] # Show last 5 tasks
+    
+    if recent_tasks:
+        for task in recent_tasks:
+            status = task.get('state', 'Unknown').upper()
+            time_ago = datetime.strptime(task['created_at'], '%Y-%m-%d %H:%M:%S')
+            
+            st.markdown(f"""
+            <div class="timeline-item">
+                <p style="margin-bottom: 0.2rem;">
+                    <strong>{status}</strong> for Task `{task['taskId'][:10]}...`
+                    <span class='status-badge status-{status.lower()}' style="margin-left: 10px;">{get_status_emoji(status)} {status}</span>
+                </p>
+                <small style="color: #999;">{time_ago.strftime('%Y-%m-%d %H:%M:%S')}</small>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("No recent tasks to show in the timeline.")
+
+def render_pricing_page():
+    st.markdown('<h1 class="main-header" style="font-size: 2.5rem;">Pricing & Plans</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Choose the plan that best fits your video processing needs.</p>', unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    
+    # Plan 1: Basic
+    with col1:
+        st.markdown('<div class="pricing-card animated" style="animation-delay: 0.1s;">', unsafe_allow_html=True)
+        st.subheader("Basic")
+        st.markdown("## $9/mo")
+        st.caption("Billed Annually")
+        st.markdown("---")
+        st.markdown("""
+        - ✅ 50 Video Tasks/mo
+        - ✅ Standard Processing Speed
+        - ✅ Email Support
+        - ❌ Priority Queue
+        - ❌ Advanced Analytics
+        """)
+        st.button("Select Basic", key="basic_plan", use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Plan 2: Pro (Popular)
+    with col2:
+        st.markdown('<div class="pricing-card pricing-popular animated" style="animation-delay: 0.2s;">', unsafe_allow_html=True)
+        st.markdown('<div class="popular-tag">Most Popular</div>', unsafe_allow_html=True)
+        st.subheader("Pro")
+        st.markdown("## $29/mo")
+        st.caption("Billed Annually")
+        st.markdown("---")
+        st.markdown("""
+        - ✅ 250 Video Tasks/mo
+        - ✅ **High-Speed Processing**
+        - ✅ Priority Support
+        - ✅ Priority Queue
+        - ✅ Advanced Analytics
+        """)
+        st.button("Select Pro", key="pro_plan", use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Plan 3: Enterprise
+    with col3:
+        st.markdown('<div class="pricing-card animated" style="animation-delay: 0.3s;">', unsafe_allow_html=True)
+        st.subheader("Enterprise")
+        st.markdown("## Custom")
+        st.caption("Contact Sales")
+        st.markdown("---")
+        st.markdown("""
+        - ✅ Unlimited Video Tasks
+        - ✅ Dedicated Infrastructure
+        - ✅ 24/7 Phone Support
+        - ✅ Custom SLA
+        - ✅ On-Premise Option
+        """)
+        st.button("Contact Sales", key="enterprise_plan", use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    st.markdown("---")
+    st.info("All plans come with a 7-day free trial. Cancel anytime.")
+
 # --- Sidebar ---
 with st.sidebar:
     st.markdown('<h1 class="main-header" style="font-size: 2rem; text-align: left;">Sora Watermark Remover Pro</h1>', unsafe_allow_html=True)
     st.markdown('<p class="subtitle" style="text-align: left; margin-bottom: 1rem;">Powered by EntreMotivator</p>', unsafe_allow_html=True)
+    
+    # --- New: Navigation Menu ---
+    st.subheader("🧭 Navigation")
+    
+    # Use radio buttons for navigation
+    page_selection = st.radio(
+        "Go to",
+        ('Home', 'Task List', 'Analytics', 'Pricing'),
+        index=['Home', 'Task List', 'Analytics', 'Pricing'].index(st.session_state.page.capitalize()),
+        key="page_selector"
+    )
+    st.session_state.page = page_selection.lower()
+    
+    st.markdown("---")
     
     # API Key Input
     st.subheader("🔑 API Configuration")
@@ -634,7 +998,7 @@ with st.sidebar:
     st.markdown("---")
     
     # Statistics Section
-    st.subheader("📊 Statistics")
+    st.subheader("📊 Quick Stats")
     stats = calculate_stats()
     
     col1, col2 = st.columns(2)
@@ -657,1014 +1021,52 @@ with st.sidebar:
     st.metric("Avg Processing", f"{insights['avg_processing_time']:.1f}s")
     st.metric("Total Videos", insights['total_videos'])
     st.metric("API Calls", st.session_state.api_calls_count)
-    st.metric("Favorites", insights['favorite_count'])
     
+    # --- New: Notifications Panel ---
     st.markdown("---")
+    st.subheader("🔔 Notifications")
     
-    # Notifications Section
-    if show_notifications and st.session_state.notifications:
-        st.subheader("🔔 Recent Notifications")
-        for notif in st.session_state.notifications[:5]:
+    if st.session_state.notifications:
+        for notif in st.session_state.notifications:
             if notif['type'] == 'success':
-                st.success(f"{notif['timestamp']} - {notif['message']}")
-            elif notif['type'] == 'error':
-                st.error(f"{notif['timestamp']} - {notif['message']}")
+                st.success(f"[{notif['timestamp']}] {notif['message']}")
+            elif notif['type'] == 'fail':
+                st.error(f"[{notif['timestamp']}] {notif['message']}")
             else:
-                st.info(f"{notif['timestamp']} - {notif['message']}")
-    
-    st.markdown("---")
-    
-    # Help Section
-    st.subheader("ℹ️ Quick Guide")
-    with st.expander("📖 How to Use"):
-        st.markdown("""
-        **Step 1:** Enter your API key from EntreMotivator.com
-        
-        **Step 2:** Paste your Sora video URL
-        
-        **Step 3:** Click "Remove Watermark"
-        
-        **Step 4:** Monitor progress in real-time
-        
-        **Step 5:** Download your processed video!
-        
-        **Pro Tip:** Enable auto-refresh to track multiple tasks simultaneously
-        """)
-    
-    with st.expander("🔗 Supported URLs"):
-        st.markdown("""
-        - Must start with `sora.chatgpt.com`
-        - Must be publicly accessible
-        - Maximum length: 500 characters
-        - Supports HD and 4K videos
-        
-        **Example:**
-        ```
-        https://sora.chatgpt.com/p/s_68e83bd7ee...
-        ```
-        """)
-    
-    with st.expander("📊 Task States"):
-        st.markdown("""
-        - ⏳ **Waiting**: Task is being processed
-        - ✅ **Success**: Processing completed successfully
-        - ❌ **Fail**: An error occurred during processing
-        - ⚪ **Unknown**: Status could not be determined
-        """)
-    
-    with st.expander("💡 Best Practices"):
-        st.markdown("""
-        - Use shorter URLs when possible
-        - Monitor your API usage regularly
-        - Enable auto-refresh for batch processing
-        - Export task history periodically
-        - Add frequently used videos to favorites
-        """)
-    
-    st.markdown("---")
-    
-    # Quick Actions
-    st.subheader("⚡ Quick Actions")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🔄 Refresh", use_container_width=True):
-            add_notification("Manually refreshed all tasks", "info")
-            st.rerun()
-    with col2:
-        if st.button("🗑️ Clear", use_container_width=True):
-            st.session_state.tasks = []
-            st.session_state.task_history = []
-            add_notification("Cleared all tasks", "info")
-            st.rerun()
-    
-    if st.session_state.task_history:
-        export_data = json.dumps(st.session_state.task_history, indent=2)
-        st.download_button(
-            label="📥 Export History",
-            data=export_data,
-            file_name=f"task_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-            mime="application/json",
-            use_container_width=True
-        )
-    
-    if st.button("⭐ View Favorites", use_container_width=True):
-        st.session_state.show_favorites = not st.session_state.get('show_favorites', False)
-        st.rerun()
-    
-    st.markdown("---")
-    st.caption("v3.0.0 | Powered by EntreMotivator.com")
-
-# --- Main Content Area ---
-st.markdown('<h1 class="main-header">Sora Watermark Remover Pro</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Remove watermarks from your Sora videos with AI-powered precision.</p>', unsafe_allow_html=True)
-
-if not api_key:
-    # Welcome Screen
-    st.markdown('<div class="card animated">', unsafe_allow_html=True)
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.markdown("""
-        <div style="text-align: center;">
-            <div class="feature-icon">🎯</div>
-            <h3>Lightning Fast</h3>
-            <p>Remove watermarks in minutes with cutting-edge AI technology</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div style="text-align: center;">
-            <div class="feature-icon">🔒</div>
-            <h3>Bank-Level Security</h3>
-            <p>Your videos are processed with military-grade encryption</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div style="text-align: center;">
-            <div class="feature-icon">⚡</div>
-            <h3>Premium Quality</h3>
-            <p>Maintain 100% original quality with advanced algorithms</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown("""
-        <div style="text-align: center;">
-            <div class="feature-icon">🚀</div>
-            <h3>Batch Processing</h3>
-            <p>Process multiple videos simultaneously for efficiency</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('<div class="warning-box animated">', unsafe_allow_html=True)
-    st.warning("⚠️ **Getting Started:** Please enter your API Key in the sidebar to begin. Visit EntreMotivator.com to get your key.")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Why Choose Us Section
-    st.markdown("### 🌟 Why Choose Sora Watermark Remover Pro?")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        <div class="feature-card animated">
-            <h4>🎨 Professional Results</h4>
-            <p>Our AI-powered technology delivers studio-quality output that maintains the integrity of your original video while seamlessly removing watermarks.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="feature-card animated" style="animation-delay: 0.2s;">
-            <h4>⚡ Blazing Fast Processing</h4>
-            <p>Process videos up to 10x faster than traditional methods. Our optimized infrastructure ensures minimal wait times even during peak hours.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="feature-card animated" style="animation-delay: 0.4s;">
-            <h4>💰 Cost-Effective</h4>
-            <p>Pay only for what you use. No hidden fees, no subscriptions. Transparent pricing with volume discounts available.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="feature-card animated" style="animation-delay: 0.1s;">
-            <h4>🔐 Privacy First</h4>
-            <p>Your videos are automatically deleted after processing. We never store or share your content with third parties.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="feature-card animated" style="animation-delay: 0.3s;">
-            <h4>📊 Real-Time Tracking</h4>
-            <p>Monitor your tasks with live updates. Get instant notifications when processing completes.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="feature-card animated" style="animation-delay: 0.5s;">
-            <h4>🎓 Expert Support</h4>
-            <p>24/7 customer support from video processing experts. Get help whenever you need it at EntreMotivator.com.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Setup Instructions
-    st.markdown("### 🚀 Quick Setup Guide")
-    
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "💻 Method 1: Secrets File", 
-        "🔑 Method 2: Manual Entry", 
-        "📖 API Documentation",
-        "🎯 Getting Started"
-    ])
-    
-    with tab1:
-        st.markdown("""
-        **Using Streamlit Secrets (Recommended for Production)**
-        
-        This method is perfect for deploying your application securely without exposing your API key.
-        
-        **Steps:**
-        
-        1. Create a file: `.streamlit/secrets.toml` in your project root
-        2. Add your API key:
-        ```toml
-        api_key = "your_api_key_here"
-        ```
-        3. Restart the application
-        4. ✅ Your API key will be automatically loaded!
-        
-        **Security Benefits:**
-        - API key never exposed in code
-        - Safe for version control
-        - Easy to rotate keys
-        - Works with deployment platforms
-        """)
-        
-        st.code("""
-# .streamlit/secrets.toml
-api_key = "sk_your_actual_api_key_from_entremotivator_here"
-        """, language="toml")
-        
-        st.info("💡 Remember to add `.streamlit/secrets.toml` to your `.gitignore` file!")
-    
-    with tab2:
-        st.markdown("""
-        **Manual Entry (Quick Start)**
-        
-        Perfect for testing and development. Enter your key each session.
-        
-        **Steps:**
-        
-        1. Visit [EntreMotivator.com](https://EntreMotivator.com) and sign in
-        2. Navigate to your Dashboard → API Keys
-        3. Click "Generate New API Key"
-        4. Copy the generated key
-        5. Enter it in the sidebar under "🔑 API Configuration"
-        6. Start processing immediately!
-        
-        ⚠️ **Note:** You'll need to re-enter the key each session unless you use the secrets file method.
-        
-        **When to Use:**
-        - Quick testing
-        - Development environment
-        - One-time use
-        - Learning the platform
-        """)
-    
-    with tab3:
-        st.markdown("""
-        **Complete API Documentation**
-        
-        ### Authentication
-        All API requests require Bearer token authentication:
-        ```
-        Authorization: Bearer YOUR_API_KEY
-        ```
-        
-        ### Endpoints
-        
-        **1. Create Task**
-        ```
-        POST https://api.kie.ai/api/v1/jobs/createTask
-        ```
-        
-        **Request Body:**
-        ```json
-        {
-          "model": "sora-watermark-remover",
-          "input": {
-            "video_url": "https://sora.chatgpt.com/p/s_xxx"
-          },
-          "callBackUrl": "https://your-domain.com/callback" // optional
-        }
-        ```
-        
-        **2. Query Task**
-        ```
-        GET https://api.kie.ai/api/v1/jobs/recordInfo?taskId=xxx
-        ```
-        
-        ### Response Codes
-        - **200**: Success
-        - **401**: Invalid API key
-        - **402**: Insufficient balance
-        - **429**: Rate limit exceeded
-        - **500**: Server error
-        
-        ### Rate Limits
-        - Free Tier: 10 requests/hour
-        - Pro Tier: 100 requests/hour
-        - Enterprise: Unlimited
-        
-        ### Best Practices
-        1. Always handle error responses
-        2. Implement exponential backoff for retries
-        3. Use webhooks for long-running tasks
-        4. Monitor your usage at EntreMotivator.com
-        """)
-    
-    with tab4:
-        st.markdown("""
-        **Your Journey to Success**
-        
-        ### Step 1: Get Your API Key 🔑
-        Visit **EntreMotivator.com** and create your free account. Navigate to the API section and generate your first key. It only takes 2 minutes!
-        
-        ### Step 2: Configure the App ⚙️
-        Enter your API key in the sidebar. Choose between manual entry or secrets file based on your needs.
-        
-        ### Step 3: Prepare Your Video 🎥
-        Make sure your Sora video URL:
-        - Starts with `https://sora.chatgpt.com`
-        - Is publicly accessible
-        - Is under 500 characters
-        - Points to a valid video file
-        
-        ### Step 4: Process & Download 🚀
-        Click "Remove Watermark" and watch the magic happen! Your processed video will be ready in minutes.
-        
-        ### Step 5: Optimize Your Workflow 💡
-        - Enable auto-refresh for batch jobs
-        - Use favorites for frequent videos
-        - Export history for record keeping
-        - Monitor stats for insights
-        
-        ### Pro Tips 🌟
-        - Process during off-peak hours for faster results
-        - Use batch processing for multiple videos
-        - Enable notifications to stay updated
-        - Check analytics to optimize usage
-        """)
-    
-    st.markdown("---")
-    
-    # Pricing Section
-    st.markdown("### 💳 Transparent Pricing")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.markdown("""
-        <div class="pricing-card">
-            <h4>🆓 Free Trial</h4>
-            <div style="font-size: 2.5rem; font-weight: 700; color: #667eea; margin: 1rem 0;">$0</div>
-            <p style="color: #999;">Get started free</p>
-            <hr>
-            <ul style="text-align: left; padding-left: 1.5rem;">
-                <li>5 videos per month</li>
-                <li>Standard processing speed</li>
-                <li>720p output quality</li>
-                <li>Email support</li>
-                <li>Basic analytics</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="pricing-card">
-            <h4>⚡ Starter</h4>
-            <div style="font-size: 2.5rem; font-weight: 700; color: #667eea; margin: 1rem 0;">$19</div>
-            <p style="color: #999;">per month</p>
-            <hr>
-            <ul style="text-align: left; padding-left: 1.5rem;">
-                <li>50 videos per month</li>
-                <li>Fast processing</li>
-                <li>1080p output quality</li>
-                <li>Priority email support</li>
-                <li>Advanced analytics</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div class="pricing-card pricing-popular">
-            <div class="popular-tag">MOST POPULAR</div>
-            <h4>🚀 Professional</h4>
-            <div style="font-size: 2.5rem; font-weight: 700; color: #667eea; margin: 1rem 0;">$49</div>
-            <p style="color: #999;">per month</p>
-            <hr>
-            <ul style="text-align: left; padding-left: 1.5rem;">
-                <li>200 videos per month</li>
-                <li>Ultra-fast processing</li>
-                <li>4K output quality</li>
-                <li>24/7 chat support</li>
-                <li>Full analytics suite</li>
-                <li>Batch processing</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown("""
-        <div class="pricing-card">
-            <h4>💼 Enterprise</h4>
-            <div style="font-size: 2.5rem; font-weight: 700; color: #667eea; margin: 1rem 0;">Custom</div>
-            <p style="color: #999;">Contact us</p>
-            <hr>
-            <ul style="text-align: left; padding-left: 1.5rem;">
-                <li>Unlimited videos</li>
-                <li>Instant processing</li>
-                <li>8K output quality</li>
-                <li>Dedicated account manager</li>
-                <li>Custom integrations</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.info("🎁 **Special Offer:** Get 20% off any plan with code WELCOME20 at EntreMotivator.com")
-    
-    st.markdown("---")
-    
-    # Testimonials Section
-    st.markdown("### 💬 What Our Users Say")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("""
-        <div class="card">
-            <p style="font-style: italic; color: #666;">"This tool saved me hours of manual editing. The quality is outstanding and the process is incredibly simple!"</p>
-            <p style="text-align: right; font-weight: 600; color: #667eea;">- Sarah Chen, Content Creator</p>
-            <p style="text-align: right; color: #999;">⭐⭐⭐⭐⭐</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="card">
-            <p style="font-style: italic; color: #666;">"Fast, reliable, and professional. EntreMotivator.com has become an essential part of my workflow."</p>
-            <p style="text-align: right; font-weight: 600; color: #667eea;">- Marcus Rodriguez, Video Editor</p>
-            <p style="text-align: right; color: #999;">⭐⭐⭐⭐⭐</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div class="card">
-            <p style="font-style: italic; color: #666;">"The batch processing feature is a game-changer. I can now handle 50+ videos in the time it used to take for 5."</p>
-            <p style="text-align: right; font-weight: 600; color: #667eea;">- Jennifer Park, Marketing Director</p>
-            <p style="text-align: right; color: #999;">⭐⭐⭐⭐⭐</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # FAQ Section
-    st.markdown("### ❓ Frequently Asked Questions")
-    
-    with st.expander("How long does processing take?"):
-        st.markdown("""
-        Processing time varies based on video length and current server load:
-        - **Short videos (< 30 seconds)**: 1-3 minutes
-        - **Medium videos (30-60 seconds)**: 3-5 minutes
-        - **Long videos (> 60 seconds)**: 5-10 minutes
-        
-        Pro and Enterprise users get priority processing for faster results.
-        """)
-    
-    with st.expander("What video formats are supported?"):
-        st.markdown("""
-        We support all standard video formats from Sora, including:
-        - MP4
-        - MOV
-        - WebM
-        - Various resolutions up to 8K (Enterprise)
-        
-        The output format matches your input for compatibility.
-        """)
-    
-    with st.expander("Is my data secure?"):
-        st.markdown("""
-        Absolutely! We take security seriously:
-        - All connections use TLS 1.3 encryption
-        - Videos are processed in isolated containers
-        - Data is automatically deleted after 24 hours
-        - We never share or sell your content
-        - GDPR and CCPA compliant
-        """)
-    
-    with st.expander("Can I process multiple videos at once?"):
-        st.markdown("""
-        Yes! Our platform supports batch processing:
-        - Free users: 1 concurrent video
-        - Starter: 3 concurrent videos
-        - Professional: 10 concurrent videos
-        - Enterprise: Unlimited concurrent processing
-        
-        Enable auto-refresh to monitor all tasks in real-time.
-        """)
-    
-    with st.expander("What if processing fails?"):
-        st.markdown("""
-        If a task fails:
-        1. Check the error message in the task details
-        2. Verify your video URL is correct and accessible
-        3. Ensure you have sufficient API credits
-        4. Try again - temporary issues usually resolve quickly
-        5. Contact support at EntreMotivator.com if issues persist
-        
-        Failed tasks don't count against your quota.
-        """)
-    
-    with st.expander("How do I get an API key?"):
-        st.markdown("""
-        Getting your API key is simple:
-        1. Visit **EntreMotivator.com**
-        2. Create a free account or sign in
-        3. Navigate to Dashboard → API Keys
-        4. Click "Generate New API Key"
-        5. Copy and securely store your key
-        6. Enter it in this app to start processing
-        
-        Your first API key is free with 5 video credits included!
-        """)
-    
-    with st.expander("What's your refund policy?"):
-        st.markdown("""
-        We offer a 30-day money-back guarantee:
-        - Try any paid plan risk-free
-        - Cancel anytime within 30 days for a full refund
-        - No questions asked
-        - Process handled within 5 business days
-        
-        Contact support@entremotivator.com to request a refund.
-        """)
-
-else:
-    # Main Application Interface
-    
-    # Create Task Section
-    st.markdown("### 🚀 Create New Watermark Removal Task")
-    
-    with st.container():
-        st.markdown('<div class="card animated">', unsafe_allow_html=True)
-        
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            video_url = st.text_input(
-                "🎥 Sora Video URL",
-                placeholder="https://sora.chatgpt.com/p/s_68e83bd7eee88191be79d2ba7158516f",
-                help="Enter the complete Sora video URL from sora.chatgpt.com",
-                key="video_url_input",
-                value=st.session_state.example_url
-            )
-            
-            # URL Validation
-            if video_url:
-                if video_url.startswith("https://sora.chatgpt.com"):
-                    st.success("✅ Valid Sora URL")
-                else:
-                    st.error("❌ Invalid URL - Must start with https://sora.chatgpt.com")
-        
-        with col2:
-            callback_url = st.text_input(
-                "🔔 Callback URL (Optional)",
-                placeholder="https://your-domain.com/callback",
-                help="Receive webhook notifications when task completes"
-            )
-        
-        # Additional Options
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            priority = st.selectbox(
-                "⚡ Priority Level",
-                ["Normal", "High", "Urgent"],
-                help="Higher priority tasks process faster (Pro/Enterprise only)"
-            )
-        
-        with col2:
-            add_to_favorites = st.checkbox("⭐ Add to favorites", value=False)
-        
-        with col3:
-            notify_on_complete = st.checkbox("🔔 Notify on completion", value=True)
-        
-        col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
-        
-        with col1:
-            create_button = st.button("🎯 Remove Watermark Now", type="primary", use_container_width=True)
-        
-        with col2:
-            if st.button("📋 Paste Example", use_container_width=True):
-                st.session_state.example_url = "https://sora.chatgpt.com/p/s_68e83bd7eee88191be79d2ba7158516f"
-                st.rerun()
-        
-        with col3:
-            if st.button("📜 History", use_container_width=True):
-                st.session_state.show_analytics = False
-                st.session_state.show_favorites = False
-                st.rerun()
-        
-        with col4:
-            if st.button("🔄 Clear Form", use_container_width=True):
-                st.session_state.example_url = ""
-                st.rerun()
-        
-        if create_button:
-            if not video_url:
-                st.error("❌ Please enter a video URL")
-            elif not video_url.startswith("https://sora.chatgpt.com"):
-                st.error("❌ Invalid URL format. Must start with https://sora.chatgpt.com")
-            elif len(video_url) > 500:
-                st.error("❌ URL is too long (max 500 characters)")
-            else:
-                with st.spinner("🔄 Creating task... Please wait"):
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
-                    
-                    for i in range(100):
-                        time.sleep(0.01)
-                        progress_bar.progress(i + 1)
-                        if i < 30:
-                            status_text.text("🔍 Validating URL...")
-                        elif i < 60:
-                            status_text.text("🚀 Submitting to processing queue...")
-                        else:
-                            status_text.text("✨ Finalizing task creation...")
-                    
-                    result = create_task(api_key, video_url, callback_url if callback_url else None)
-                    
-                    if result.get("code") == 200:
-                        task_id = result["data"]["taskId"]
-                        
-                        task_data = {
-                            "taskId": task_id,
-                            "video_url": video_url,
-                            "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                            "state": "waiting",
-                            "callback_url": callback_url if callback_url else None,
-                            "priority": priority,
-                            "is_favorite": add_to_favorites
-                        }
-                        
-                        st.session_state.tasks.append(task_data)
-                        st.session_state.task_history.append(task_data)
-                        
-                        if add_to_favorites:
-                            st.session_state.favorites.append(task_id)
-                        
-                        st.markdown('<div class="success-box">', unsafe_allow_html=True)
-                        st.success(f"✅ Task created successfully!")
-                        st.info(f"**Task ID:** `{task_id}`")
-                        st.markdown('</div>', unsafe_allow_html=True)
-                        
-                        add_notification(f"New task created: {task_id[:16]}...", "success")
-                        
-                        time.sleep(1)
-                        st.session_state.example_url = "" # Clear example URL after successful submission
-                        st.rerun()
-                    else:
-                        error_msg = result.get('msg', 'Unknown error')
-                        st.error(f"❌ Failed to create task: {error_msg}")
-                        add_notification(f"Task creation failed: {error_msg}", "error")
-                        
-                        if result.get("code") == 401:
-                            st.warning("🔑 Authentication failed. Please check your API key at EntreMotivator.com")
-                        elif result.get("code") == 402:
-                            st.warning("💳 Insufficient account balance. Please top up your account at EntreMotivator.com")
-                        elif result.get("code") == 429:
-                            st.warning("⏱️ Rate limit exceeded. Please wait a moment and try again.")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Task Management Section
-    st.markdown("### 📋 Task Management Dashboard")
-    
-    # Statistics Cards
-    stats = calculate_stats()
-    col1, col2, col3, col4, col5 = st.columns(5)
-    
-    with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-label">Total Tasks</div>
-            <div class="metric-value">{stats['total']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div class="metric-card" style="background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%);">
-            <div class="metric-label">⏳ Waiting</div>
-            <div class="metric-value">{stats['waiting']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div class="metric-card" style="background: linear-gradient(135deg, #28A745 0%, #20C997 100%);">
-            <div class="metric-label">✅ Success</div>
-            <div class="metric-value">{stats['success']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown(f"""
-        <div class="metric-card" style="background: linear-gradient(135deg, #DC3545 0%, #C82333 100%);">
-            <div class="metric-label">❌ Failed</div>
-            <div class="metric-value">{stats['failed']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col5:
-        st.markdown(f"""
-        <div class="metric-card" style="background: linear-gradient(135deg, #17A2B8 0%, #138496 100%);">
-            <div class="metric-label">Success Rate</div>
-            <div class="metric-value">{stats['success_rate']:.0f}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Performance Chart
-    if len(st.session_state.task_history) > 0:
-        st.markdown("#### 📈 Processing Performance")
-        
-        # Create sample data for visualization
-        success_tasks = [t for t in st.session_state.task_history if t.get('state') == 'success']
-        
-        if len(success_tasks) > 0:
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # Task completion timeline
-                fig = go.Figure()
-                
-                dates = [datetime.strptime(t['created_at'], '%Y-%m-%d %H:%M:%S') for t in st.session_state.task_history[-20:]]
-                states = [1 if t.get('state') == 'success' else 0 for t in st.session_state.task_history[-20:]]
-                
-                fig.add_trace(go.Scatter(
-                    x=dates,
-                    y=states,
-                    mode='lines+markers',
-                    name='Success Rate',
-                    line=dict(color='#28A745', width=3),
-                    marker=dict(size=8)
-                ))
-                
-                fig.update_layout(
-                    title="Recent Task Success",
-                    xaxis_title="Time",
-                    yaxis_title="Success (1) / Fail (0)",
-                    height=300,
-                    margin=dict(l=20, r=20, t=40, b=20)
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-            
-            with col2:
-                # Status distribution pie chart
-                fig = go.Figure(data=[go.Pie(
-                    labels=['Success', 'Waiting', 'Failed'],
-                    values=[stats['success'], stats['waiting'], stats['failed']],
-                    marker=dict(colors=['#28A745', '#FFA500', '#DC3545']),
-                    hole=.4
-                )])
-                
-                fig.update_layout(
-                    title="Task Status Distribution",
-                    height=300,
-                    margin=dict(l=20, r=20, t=40, b=20)
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-        
-        st.markdown("---")
-    
-    # Task Filters and Controls
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        filter_status = st.selectbox(
-            "🔍 Filter by Status",
-            ["All", "Waiting", "Success", "Fail"],
-            key="status_filter"
-        )
-    
-    with col2:
-        sort_by = st.selectbox(
-            "📊 Sort by",
-            ["Newest First", "Oldest First", "Status", "Priority"],
-            key="sort_by"
-        )
-    
-    with col3:
-        view_mode = st.selectbox(
-            "👁️ View Mode",
-            ["Compact", "Detailed", "Timeline"],
-            key="view_mode"
-        )
-    
-    with col4:
-        show_favorites_only = st.checkbox("⭐ Favorites Only", value=st.session_state.show_favorites)
-        st.session_state.show_favorites = show_favorites_only
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        if st.button("🔄 Refresh All Tasks", use_container_width=True):
-            add_notification("Refreshed all tasks", "info")
-            st.rerun()
-    
-    with col2:
-        if st.button("🗑️ Clear Completed", use_container_width=True):
-            st.session_state.tasks = [t for t in st.session_state.tasks if t.get('state') == 'waiting']
-            add_notification("Cleared completed tasks", "info")
-            st.rerun()
-    
-    with col3:
-        if st.button("⭐ Toggle All Favorites", use_container_width=True):
-            # Simple toggle logic for demonstration
-            if st.session_state.favorites:
-                st.session_state.favorites = []
-                add_notification("Cleared all favorites", "info")
-            else:
-                st.session_state.favorites = [t['taskId'] for t in st.session_state.tasks]
-                add_notification("Added all tasks to favorites", "info")
-            st.rerun()
-    
-    with col4:
-        if st.button("📊 View Analytics", use_container_width=True):
-            st.session_state.show_analytics = not st.session_state.get('show_analytics', False)
-            st.rerun()
-    
-    st.markdown("---")
-    
-    # Analytics Dashboard (if enabled)
-    if st.session_state.get('show_analytics', False):
-        st.markdown("### 📊 Detailed Analytics")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        insights = get_performance_insights()
-        
-        with col1:
-            st.metric(
-                "Avg Processing Time",
-                f"{insights['avg_processing_time']:.1f}s",
-                delta="-2.3s vs last week"
-            )
-        
-        with col2:
-            st.metric(
-                "Total API Calls",
-                st.session_state.api_calls_count,
-                delta=f"+{len(st.session_state.tasks)} today"
-            )
-        
-        with col3:
-            st.metric(
-                "Peak Usage Hour",
-                insights['peak_hour'],
-                delta="Most active"
-            )
-        
-        with col4:
-            st.metric(
-                "Favorite Videos",
-                insights['favorite_count'],
-                delta=None
-            )
-        
-        st.markdown("---")
-    
-    # Task List Display
-    if not st.session_state.tasks:
-        st.markdown('<div class="info-box animated">', unsafe_allow_html=True)
-        st.info("📭 No active tasks. Create your first task above to get started!")
-        st.markdown('</div>', unsafe_allow_html=True)
+                st.info(f"[{notif['timestamp']}] {notif['message']}")
     else:
-        # Filter tasks
-        filtered_tasks = st.session_state.tasks.copy()
-        
-        if filter_status != "All":
-            filtered_tasks = [t for t in filtered_tasks if t.get('state', '').lower() == filter_status.lower()]
-        
-        if show_favorites_only:
-            filtered_tasks = [t for t in filtered_tasks if t['taskId'] in st.session_state.favorites]
-        
-        # Sort tasks
-        if sort_by == "Newest First":
-            filtered_tasks = list(reversed(filtered_tasks))
-        elif sort_by == "Oldest First":
-            # Already sorted by oldest first by default (append order)
-            pass
-        elif sort_by == "Status":
-            status_order = {"waiting": 0, "fail": 1, "success": 2, "unknown": 3}
-            filtered_tasks.sort(key=lambda x: status_order.get(x.get('state', 'unknown'), 4))
-        elif sort_by == "Priority":
-            priority_order = {"Urgent": 0, "High": 1, "Normal": 2}
-            filtered_tasks.sort(key=lambda x: priority_order.get(x.get('priority', 'Normal'), 3))
-        
-        st.markdown(f"**Showing {len(filtered_tasks)} of {len(st.session_state.tasks)} tasks**")
-        
-        # Display tasks based on view mode
-        for idx, task in enumerate(filtered_tasks):
-            task_id = task["taskId"]
-            is_favorite = task_id in st.session_state.favorites
-            
-            # Query latest status only if auto-refresh is on or if it's a waiting task
-            if st.session_state.auto_refresh or task.get('state') == 'waiting':
-                with st.spinner(f"Loading task {idx + 1}..."):
-                    task_result = query_task(api_key, task_id)
-                
-                if task_result.get("code") == 200:
-                    task_data = task_result["data"]
-                    state = task_data.get("state", "unknown")
-                    
-                    # Update task state in session
-                    task['state'] = state
-                    if state == "success" and task.get('cost_time') is None:
-                        task['cost_time'] = task_data.get('costTime', 0)
-                        add_notification(f"Task {task_id[:16]}... completed successfully!", "success")
-                    elif state == "fail" and task.get('error_msg') is None:
-                        task['error_msg'] = task_data.get('msg', 'Processing failed.')
-                        add_notification(f"Task {task_id[:16]}... failed!", "error")
-                else:
-                    # Handle API query failure
-                    task['state'] = 'unknown'
-                    task['error_msg'] = task_result.get('msg', 'Failed to query task status.')
-            
-            # Display based on view mode
-            if view_mode == "Timeline":
-                # Timeline View
-                st.markdown(f"""
-                <div class="timeline-item animated">
-                    <strong>Task #{len(filtered_tasks) - idx}</strong> {'⭐' if is_favorite else ''} • {get_status_emoji(task.get('state', 'unknown'))} {task.get('state', 'Unknown').upper()}<br>
-                    <small>{task.get('created_at', 'N/A')}</small><br>
-                    <code>{task_id[:16]}...</code>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                if task.get('state') == "success":
-                    # Simple placeholder for video download in timeline view
-                    st.markdown(f"[📥 Download Video (Task {task_id[:8]}...)]()")
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-            
-            elif view_mode == "Compact":
-                # Compact View
-                col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 1, 1])
-                
-                with col1:
-                    st.markdown(f"**Task #{len(filtered_tasks) - idx}** {'⭐' if is_favorite else ''}")
-                    st.caption(f"`{task_id[:20]}...`")
-                
-                with col2:
-                    st.markdown(f'<span class="status-badge status-{task.get("state", "unknown")}">{get_status_emoji(task.get("state", "unknown"))} {task.get("state", "Unknown")}</span>', unsafe_allow_html=True)
-                
-                with col3:
-                    st.caption(task.get('created_at', 'N/A'))
-                
-                with col4:
-                    if st.button("📊", key=f"detail_{idx}", use_container_width=True):
-                        st.session_state[f"expand_{idx}"] = not st.session_state.get(f"expand_{idx}", False)
-                        st.rerun()
-                
-                with col5:
-                    if st.button("⭐" if is_favorite else "☆", key=f"fav_{idx}", use_container_width=True):
-                        if is_favorite:
-                            st.session_state.favorites.remove(task_id)
-                        else:
-                            st.session_state.favorites.append(task_id)
-                        st.rerun()
-                
-                # Display details if expanded
-                if st.session_state.get(f"expand_{idx}", False):
-                    st.markdown('<div class="task-card animated">', unsafe_allow_html=True)
-                    display_task_details(task, idx, api_key)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                
-                st.markdown("---")
-            
-            elif view_mode == "Detailed":
-                # Detailed View
-                st.markdown('<div class="task-card animated">', unsafe_allow_html=True)
-                display_task_details(task, idx, api_key)
-                st.markdown('</div>', unsafe_allow_html=True)
-                st.markdown("---")
-        
-        # Auto-refresh logic
-        if st.session_state.auto_refresh and any(t.get('state') == 'waiting' for t in st.session_state.tasks):
-            st.info(f"Auto-refresh enabled. Refreshing in {refresh_interval} seconds...")
-            time.sleep(refresh_interval)
-            st.rerun()
+        st.caption("No recent notifications.")
 
-# --- End of Streamlit App ---
+# --- Main App Logic (Multi-Page Router) ---
+
+if st.session_state.page == 'home':
+    render_home_page(api_key)
+elif st.session_state.page == 'task list':
+    render_task_list_page(api_key)
+elif st.session_state.page == 'analytics':
+    render_analytics_page()
+elif st.session_state.page == 'pricing':
+    render_pricing_page()
+
+# --- Auto-Refresh Logic ---
+if st.session_state.auto_refresh:
+    # Use a placeholder to display the countdown
+    placeholder = st.empty()
+    
+    # Calculate time until next refresh
+    if 'last_refresh' not in st.session_state:
+        st.session_state.last_refresh = time.time()
+        
+    time_elapsed = time.time() - st.session_state.last_refresh
+    time_to_wait = refresh_interval - (time_elapsed % refresh_interval)
+    
+    # Display countdown
+    placeholder.info(f"Auto-refresh enabled. Next refresh in {int(time_to_wait)} seconds...")
+    
+    # Wait for the remaining time
+    time.sleep(time_to_wait)
+    
+    # Update last refresh time and rerun
+    st.session_state.last_refresh = time.time()
+    st.rerun()
+
